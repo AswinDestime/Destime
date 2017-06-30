@@ -28,7 +28,10 @@ module.exports = function(sequelize, Sequelize) {
             type: Sequelize.INTEGER
         },
         name: Sequelize.TEXT,
-        password: Sequelize.STRING
+        password: Sequelize.STRING,
+        // Facebook info
+        facebookId: Sequelize.BIGINT,
+        facebookToken: Sequelize.TEXT
     });
     User.generateHash = function(password) {
         return bcrypt.hashSync(password, bcrypt.genSaltSync(8), null);
@@ -36,6 +39,10 @@ module.exports = function(sequelize, Sequelize) {
     User.prototype.validPassword = function(password) {
         return bcrypt.compareSync(password, this.password);
     }
-
+    // running the following command will automatically run the MySQL commands necessary
+    // to create a table with the necessary fields to hold our data.
+    // it must only be ran once.
+    // User.sync({ alter: true });
     return User;
+
 }

@@ -24,16 +24,42 @@
             <div class="well">
                 <h3><span class="fa fa-user"></span> Local</h3>
 
+                <% if (user.password) { %>
                     <p>
                         <strong>id</strong>: <%= user.id %><br>
                         <strong>name</strong>: <%= user.name %><br>
                         <strong>password</strong>: <%= user.password %>
                     </p>
+                    
+                   <!-- <a href="/unlink/local" class="btn btn-default">Unlink</a> -->
+                <% } else { %>
+                    <a href="/connect/local" class="btn btn-default">Connect Local</a>
+                <% } %>
 
             </div>
         </div>
 
+        <!-- FACEBOOK INFORMATION -->
+        <div class="col-sm-6">
+            <div class="well">
+                <h3 class="text-primary"><span class="fa fa-facebook"></span> Facebook</h3>
+
+                <!-- check if the user has this token (is the user authenticated with this social account) -->
+                <% if (user.facebookToken) { %>
+                    <p>
+                        <strong>id</strong>: <%= user.facebookId %><br>
+                        <strong>token</strong>: <%= user.facebookToken %><br>
+                    </p>
+
+                    <!-- <a href="/unlink/facebook" class="btn btn-primary">Unlink</a> -->
+                <% } else { %>
+                    <a href="/connect/facebook" class="btn btn-primary">Connect Facebook</a>
+                <% } %>
+
+            </div>
+        </div>
     </div>
+
 
 </div>
 </body>

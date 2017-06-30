@@ -1,17 +1,26 @@
 var LocalStrategy = require('passport-local').Strategy;
+var FacebookStrategy = require('passport-facebook').Strategy;
 var PassportJWT = require('passport-jwt');
 var JWTStrategy = PassportJWT.Strategy;
 var ExtractJWT = PassportJWT.ExtractJwt;
 var JWTcfg = require('./jwt');
+var cookieExtractor = function(req) {
+    var token = null;
+    if (req && req.cookies) {
+        token = req.cookies['jwt'];
+        console.log(token);
+    }
+    return token;
+};
 var params = {  
     secretOrKey: JWTcfg.jwtSecret,
-    jwtFromRequest: ExtractJWT.fromAuthHeader(),
+    jwtFromRequest: cookieExtractor,
     passReqToCallback: true
 };
-
+var configAuth = require('./auth');
 var Sequelize = require('sequelize');
 // substitute as necessary
-var sequelize = new Sequelize('DBName', 'user', 'password', {
+var sequelize = new Sequelize('tableName', 'username', 'password', {
     host: 'localhost',
     dialect: 'mysql'
 });
@@ -82,15 +91,71 @@ module.exports = function(passport) {
         });
     }));
     passport.use('jwt-login', new JWTStrategy(params, function(req, payload, done) {
+        console.log("finding" + payload.id);
         User.findById(payload.id).then(function(user) {
             if (!user) {
+                console.log("Nope");
                 return done(null, false, req.flash('loginMessage', 'No user found.'));
             }
             else {
+                console.log("Yea");
                 return done(null, user);
             }
         });
     }));
+    passport.use(new FacebookStrategy({
+        clientID        : configAuth.facebookAuth.clientID,
+        clientSecret    : configAuth.facebookAuth.clientSecret,
+        callbackURL     : configAuth.facebookAuth.callbackURL,
+        passReqToCallback : true,
+        profileFields: ['id', 'emails', 'name']
+    },
+    function(req, token, refreshToken, profile, done) {
+        process.nextTick(function() {
+            console.log(profile);
+            // not logged in, authenticating
+            if (!req.user) {
+                User.findOne({ where: {facebookId: profile.id} }).then(function(user) {
+                    if (user) {
+                        return done(null, user); // user found, return that user
+                    } else {
+                        var data =
+                        {
+                            facebookId: profile.id,
+                            facebookToken: token,
+                        };
+                        User.create(data).then(function(newUser, created) {
+                            if (!newUser) {
+                                return done(null, false);
+                            }
+                            if (newUser) {
+                                return done(null, newUser);
+                            }
+                        });
+                    }
+                });
+            }
+            // logged in, authorizing
+            else {
+                var user = req.user;
+                var data = {
+                    facebookId: profile.id,
+                    facebookToken: token
+                };
+                User.update(data, {where: {id: user.id} }).then(function(newUser, created) {
+                    if (!newUser) {
+                        return done(null, false);
+                    }
+                    if (newUser) {
+                        return done(null, newUser);
+                    }
+                });
+            }
+        });
+    }));
+
+
+
 };
 
 

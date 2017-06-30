@@ -1,4 +1,5 @@
+// not used
 module.exports = {
-    'secret': 'catsplosion',
+    'secret': 'secret',
     'url': 'mongodb://localhost/testDB'
 };
