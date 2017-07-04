@@ -41,7 +41,8 @@ module.exports = function(app, passport) {
         });
     });
     app.get('/logout', function(req, res) {
-        req.logout();
+//        req.logout();
+        res.clearCookie('jwt');
         res.redirect('/');
     });
     app.post('/signup', passport.authenticate('local-signup', {
