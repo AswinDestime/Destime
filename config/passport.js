@@ -138,16 +138,22 @@ module.exports = function(passport) {
             // logged in, authorizing
             else {
                 var user = req.user;
-                var data = {
-                    facebookId: profile.id,
-                    facebookToken: token
-                };
-                User.update(data, {where: {id: user.id} }).then(function(newUser, created) {
-                    if (!newUser) {
-                        return done(null, false);
-                    }
-                    if (newUser) {
-                        return done(null, newUser);
+                User.findOne({ where: {facebookId: profile.id} }).then(function(facebookUser) {
+                    if (facebookUser) {
+                        return done(null, false, req.flash("connectMessage", "This Facebook account is already linked to another account."));
+                    } else {
+                        var data = {
+                            facebookId: profile.id,
+                            facebookToken: token
+                        };
+                        User.update(data, {where: {id: user.id} }).then(function(newUser, created) {
+                            if (!newUser) {
+                                return done(null, false);
+                            }
+                            if (newUser) {
+                                return done(null, newUser);
+                            }
+                        });
                     }
                 });
             }
