@@ -1,5 +1,7 @@
 var LocalStrategy = require('passport-local').Strategy;
 var FacebookStrategy = require('passport-facebook').Strategy;
+var GoogleStrategy = require('passport-google-oauth2').Strategy;
+var jwt = require('jsonwebtoken');
 var PassportJWT = require('passport-jwt');
 var JWTStrategy = PassportJWT.Strategy;
 var ExtractJWT = PassportJWT.ExtractJwt;
@@ -20,7 +22,7 @@ var params = {
 var configAuth = require('./auth');
 var Sequelize = require('sequelize');
 // substitute as necessary
-var sequelize = new Sequelize('tableName', 'username', 'password', {
+var sequelize = new Sequelize('tableName', 'user', 'password', {
     host: 'localhost',
     dialect: 'mysql'
 });
@@ -79,9 +81,9 @@ module.exports = function(passport) {
     },
     function(req, name, password, done) {
         User.findOne({ where: {name: name} }).then(function(user) {
-//            if (err) {
-//                return done(err);
-//            }
+            //            if (err) {
+            //                return done(err);
+            //            }
             if (!user) {
                 return done(null, false, req.flash('loginMessage', 'No user found.'));
             }
@@ -91,7 +93,7 @@ module.exports = function(passport) {
         });
     }));
     passport.use('jwt-login', new JWTStrategy(params, function(req, payload, done) {
-        console.log("finding" + payload.id);
+        console.log("finding " + payload.id);
         User.findById(payload.id).then(function(user) {
             if (!user) {
                 console.log("Nope");
@@ -112,9 +114,9 @@ module.exports = function(passport) {
     },
     function(req, token, refreshToken, profile, done) {
         process.nextTick(function() {
-            console.log(profile);
             // not logged in, authenticating
-            if (!req.user) {
+            if (!req.cookies.jwt) {
+                console.log("Logging in Facebook");
                 User.findOne({ where: {facebookId: profile.id} }).then(function(user) {
                     if (user) {
                         return done(null, user); // user found, return that user
@@ -137,16 +139,55 @@ module.exports = function(passport) {
             }
             // logged in, authorizing
             else {
-                var user = req.user;
-                User.findOne({ where: {facebookId: profile.id} }).then(function(facebookUser) {
-                    if (facebookUser) {
-                        return done(null, false, req.flash("connectMessage", "This Facebook account is already linked to another account."));
+                console.log("Authorizing Facebook.");
+                jwt.verify(req.cookies.jwt,JWTcfg.jwtSecret, function(err, decodedPayload) {
+                    User.findOne({ where: {id: decodedPayload.id} }).then(function(user) {
+                        User.findOne({ where: {facebookId: profile.id} }).then(function(facebookUser) {
+                            if (facebookUser) {
+                                return done(null, false, req.flash("connectMessage", "This Facebook account is already linked to another account."));
+                            } else {
+                                var data = {
+                                    facebookId: profile.id,
+                                    facebookToken: token
+                                };
+                                User.update(data, {where: {id: user.id} }).then(function(newUser, created) {
+                                    if (!newUser) {
+                                        return done(null, false);
+                                    }
+                                    if (newUser) {
+                                        return done(null, newUser);
+                                    }
+                                });
+                            }
+                        });
+                    });
+                });
+            }
+        });
+    }));
+
+    passport.use(new GoogleStrategy({
+        clientID        : configAuth.googleAuth.clientID,
+        clientSecret    : configAuth.googleAuth.clientSecret,
+        callbackURL     : configAuth.googleAuth.callbackURL,
+        passReqToCallback : true,
+    },
+    function(req, token, refreshToken, profile, done) {
+        process.nextTick(function() {
+            // not logged in, authenticating
+            console.log(req.cookies);
+            if (!req.cookies.jwt) {
+                console.log("Logging in Google.");
+                User.findOne({ where: {googleId: profile.id} }).then(function(user) {
+                    if (user) {
+                        return done(null, user); // user found, return that user
                     } else {
-                        var data = {
-                            facebookId: profile.id,
-                            facebookToken: token
+                        var data =
+                        {
+                            googleId: profile.id,
+                            googleToken: token,
                         };
-                        User.update(data, {where: {id: user.id} }).then(function(newUser, created) {
+                        User.create(data).then(function(newUser, created) {
                             if (!newUser) {
                                 return done(null, false);
                             }
@@ -155,6 +196,32 @@ module.exports = function(passport) {
                             }
                         });
                     }
+                });
+            }
+            // logged in, authorizing
+            else {
+                console.log("Authorizing Google.");
+                jwt.verify(req.cookies.jwt, JWTcfg.jwtSecret, function(err, decodedPayload) {
+                    User.findOne({ where: {id: decodedPayload.id} }).then(function(user) {
+                        User.findOne({ where: {googleId: profile.id} }).then(function(googleUser) {
+                            if (googleUser) {
+                                return done(null, false, req.flash("connectMessage", "This Google account is already linked to another account."));
+                            } else {
+                                var data = {
+                                    googleId: profile.id,
+                                    googleToken: token
+                                };
+                                User.update(data, {where: {id: user.id} }).then(function(newUser, created) {
+                                    if (!newUser) {
+                                        return done(null, false);
+                                    }
+                                    if (newUser) {
+                                        return done(null, newUser);
+                                    }
+                                });
+                            }
+                        });
+                    });
                 });
             }
         });

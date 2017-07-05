@@ -2,10 +2,10 @@ var jwt = require('jsonwebtoken');
 var JWTConfig = require('../config/jwt');
 
 // Write a JWT Token and give it to the user as a cookie
-var returnToken = function(req, res, next) {
-    res.cookie('jwt', jwt.sign({ id: req.user.id}, JWTConfig.jwtSecret));
+var returnToken = function(req, res) {
+    if (!req.cookies.jwt) { res.cookie('jwt', jwt.sign({ id: req.user.id}, JWTConfig.jwtSecret)); }
+    console.log("Token written to cookie.");
     res.redirect('/profile');
-    next();
 };
 
 
@@ -33,7 +33,8 @@ module.exports = function(app, passport) {
 
    // profile is now protected by jwt login
     app.get('/profile', passport.authenticate('jwt-login', {
-        failureRedirect: '/login'
+        failureRedirect: '/login',
+        session: false
     }),
     function(req, res) {
         res.render('profile.ejs', {
@@ -42,7 +43,7 @@ module.exports = function(app, passport) {
     });
     app.get('/logout', function(req, res) {
 //        req.logout();
-        res.clearCookie('jwt');
+        res.cookie('jwt', '', {expires: new Date(0)});
         res.redirect('/');
     });
     app.post('/signup', passport.authenticate('local-signup', {
@@ -67,21 +68,43 @@ module.exports = function(app, passport) {
                 session: false
             }), returnToken);
 
-    app.get('/connect/facebook', passport.authenticate('jwt-login', {
-        failureRedirect: '/login'
-    }),
-            passport.authorize('facebook', { scope : 'email' }));
+    app.get('/auth/google', passport.authenticate('google', { scope : ['profile', 'email'] }));
 
-    app.get('/connect/facebook/callback', passport.authenticate('jwt-login', {
-        failureRedirect: '/login'
+    app.get('/auth/google/callback',
+            passport.authenticate('google', {
+//                successRedirect : '/profile',
+                failureRedirect : '/',
+                session: false
+            }), returnToken);
+
+    app.get('/connect/facebook', passport.authenticate('jwt-login', {
+        failureRedirect: '/login',
+        session: false
     }),
-            passport.authorize('facebook', {
+            passport.authenticate('facebook', { scope : 'email' }));
+
+    app.get('/connect/facebook/callback',	
+            passport.authenticate('facebook', {
                 successRedirect : '/profile',
                 failureRedirect : '/',
                 session: false
             }));
 
+    app.get('/connect/google', passport.authenticate('jwt-login', {
+        failureRedirect: '/login',
+            session: false
+    }),
+            passport.authorize('google', { scope : ['profile', 'email'] }));
 
+    app.get('/connect/google/callback', passport.authenticate('jwt-login', {
+        failureRedirect: '/login',
+            session: false
+    }),
+            passport.authorize('google', {
+                successRedirect : '/profile',
+                failureRedirect : '/',
+                session: false
+            }));
 
 
     function isLoggedIn(req, res, next) {

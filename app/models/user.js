@@ -30,8 +30,11 @@ module.exports = function(sequelize, Sequelize) {
         name: Sequelize.TEXT,
         password: Sequelize.STRING,
         // Facebook info
-        facebookId: Sequelize.BIGINT,
-        facebookToken: Sequelize.TEXT
+        facebookId: Sequelize.TEXT,
+        facebookToken: Sequelize.TEXT,
+        // Google info
+        googleId: Sequelize.TEXT,
+        googleToken: Sequelize.TEXT
     });
     User.generateHash = function(password) {
         return bcrypt.hashSync(password, bcrypt.genSaltSync(8), null);
