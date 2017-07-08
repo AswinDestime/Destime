@@ -93,6 +93,9 @@ module.exports = function(passport) {
         });
     }));
     passport.use('jwt-login', new JWTStrategy(params, function(req, payload, done) {
+        if (!payload.id) {
+            return done(null, false, req.flash('loginMessage', 'Error authenticating, please login again.'));
+        }
         console.log("finding " + payload.id);
         User.findById(payload.id).then(function(user) {
             if (!user) {
@@ -141,6 +144,9 @@ module.exports = function(passport) {
             else {
                 console.log("Authorizing Facebook.");
                 jwt.verify(req.cookies.jwt,JWTcfg.jwtSecret, function(err, decodedPayload) {
+                    if (err || !decodedPayload.id) {
+                        return done(null, false, req.flash("An error has occurred while authenticating."));
+                    }
                     User.findOne({ where: {id: decodedPayload.id} }).then(function(user) {
                         User.findOne({ where: {facebookId: profile.id} }).then(function(facebookUser) {
                             if (facebookUser) {
@@ -202,6 +208,9 @@ module.exports = function(passport) {
             else {
                 console.log("Authorizing Google.");
                 jwt.verify(req.cookies.jwt, JWTcfg.jwtSecret, function(err, decodedPayload) {
+                    if (err || !decodedPayload.id) {
+                        return done(null, false, req.flash("An error has occurred while authenticating."));
+                    }
                     User.findOne({ where: {id: decodedPayload.id} }).then(function(user) {
                         User.findOne({ where: {googleId: profile.id} }).then(function(googleUser) {
                             if (googleUser) {
